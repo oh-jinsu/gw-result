@@ -1,10 +1,10 @@
-type Ok<T> = {
+export type Ok<T> = {
   isOk: true;
   isErr: false;
   value: T;
 };
 
-type Err<T> = {
+export type Err<T> = {
   isOk: false;
   isErr: true;
   error: T;
