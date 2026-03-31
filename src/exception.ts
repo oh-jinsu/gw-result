@@ -2,15 +2,15 @@ import { err } from "./result";
 
 export class Exception<TCode extends string = string> {
   code: TCode;
-  message?: string;
+  message: string;
 
-  constructor(code: TCode, message?: string) {
+  constructor(code: TCode, message: string) {
     this.code = code;
     this.message = message;
   }
 }
 
-export function exception<TCode extends string>(code: TCode, message?: string) {
+export function exception<TCode extends string>(code: TCode, message: string) {
   return err(new Exception(code, message));
 }
 
