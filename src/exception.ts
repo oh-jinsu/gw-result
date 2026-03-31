@@ -1,6 +1,6 @@
 import { err } from "./result";
 
-export class Exception<TCode extends string> {
+export class Exception<TCode extends string = string> {
   code: TCode;
   message?: string;
 
