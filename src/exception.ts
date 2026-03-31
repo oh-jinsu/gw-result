@@ -1,11 +1,12 @@
 import { err } from "./result";
 
-export class Exception<TCode extends string> extends Error {
+export class Exception<TCode extends string> {
   code: TCode;
+  message?: string;
 
   constructor(code: TCode, message?: string) {
-    super(message);
     this.code = code;
+    this.message = message;
   }
 }
 
