@@ -1,14 +1,14 @@
 import { err } from "./result";
 
-export class Exception extends Error {
-  code: string;
+export class Exception<TCode extends string> extends Error {
+  code: TCode;
 
-  constructor(code: string, message?: string) {
+  constructor(code: TCode, message?: string) {
     super(message);
     this.code = code;
   }
 }
 
-export function exception(code: string, message?: string) {
+export function exception<TCode extends string>(code: TCode, message?: string) {
   return err(new Exception(code, message));
 }
