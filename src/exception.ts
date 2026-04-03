@@ -1,4 +1,4 @@
-import { err } from "./result";
+import { err, type Err } from "./result";
 
 export class Exception<TCode extends string = string> {
   code: TCode;
@@ -10,7 +10,12 @@ export class Exception<TCode extends string = string> {
   }
 }
 
-export function exception<TCode extends string>(code: TCode, message: string) {
+export type Ex<TCode extends string> = Err<Exception<TCode>>;
+
+export function exception<TCode extends string>(
+  code: TCode,
+  message: string,
+): Ex<TCode> {
   return err(new Exception(code, message));
 }
 
