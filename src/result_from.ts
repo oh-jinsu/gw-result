@@ -10,18 +10,18 @@ export function resultFrom<TParams extends any[], R>(
   ...args: TParams
 ): Result<R>;
 
-export function resultFrom(fn: any, ...args: any[]): any {
+export function resultFrom(fn: any, ...args: any[]) {
   try {
     const result = fn(...args);
 
     if (result instanceof Promise) {
       const promise = result.then((res) => ok(res)).catch((e) => err(e));
 
-      return promise as any;
+      return promise;
     }
 
-    return ok(result) as any;
+    return ok(result);
   } catch (e) {
-    return err(e) as any;
+    return err(e);
   }
 }
