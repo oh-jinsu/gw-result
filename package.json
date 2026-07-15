@@ -1,9 +1,9 @@
 {
   "name": "gw-result",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "types": "./dist/index.d.ts",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -14,7 +14,10 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch"
+    "dev": "tsup --watch",
+    "test": "npm run build && npm run test:runtime && npm run test:types",
+    "test:runtime": "node --test test/runtime/*.test.mjs",
+    "test:types": "tsc --noEmit -p tsconfig.test.json"
   },
   "repository": {
     "type": "git",
