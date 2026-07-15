@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   Exception,
+  HttpException,
   err,
   exception,
-  exceptionFromResponse,
   fetchWithResult,
+  httpException,
   ok,
   resultFrom,
 } from "../../dist/index.mjs";
@@ -60,6 +61,16 @@ test("resultFrom wraps asynchronous rejected errors", async () => {
   assert.equal(result.error, rejected);
 });
 
+test("resultFrom wraps promise-like return values", async () => {
+  const result = await resultFrom(() => ({
+    then(resolve) {
+      resolve("thenable");
+    },
+  }));
+
+  assert.deepEqual(result, ok("thenable"));
+});
+
 test("exception creates a coded error result", () => {
   const result = exception("VALIDATION_FAILED", "Email is required.");
 
@@ -69,7 +80,42 @@ test("exception creates a coded error result", () => {
   assert.equal(result.error.message, "Email is required.");
 });
 
-test("exceptionFromResponse reads code and message from JSON", async () => {
+test("HttpException uses response status text when no message is provided", () => {
+  const response = new Response("Nope", {
+    status: 400,
+    statusText: "Bad Request",
+  });
+  const exception = new HttpException(response);
+
+  assert.ok(exception instanceof Exception);
+  assert.equal(exception.code, "HTTP_EXCEPTION");
+  assert.equal(exception.message, "Bad Request");
+  assert.equal(exception.response, response);
+});
+
+test("httpException creates a coded HTTP error result from a response", async () => {
+  const response = new Response(
+    JSON.stringify({
+      code: "BAD_REQUEST",
+      message: "Bad request.",
+    }),
+    { status: 400 },
+  );
+  const result = await httpException(response);
+
+  assert.equal(result.isErr, true);
+  assert.ok(result.error instanceof Exception);
+  assert.ok(result.error instanceof HttpException);
+  assert.equal(result.error.code, "BAD_REQUEST");
+  assert.equal(result.error.message, "Bad request.");
+  assert.equal(result.error.response, response);
+  assert.deepEqual(await result.error.response.json(), {
+    code: "BAD_REQUEST",
+    message: "Bad request.",
+  });
+});
+
+test("HttpException.fromResponse reads code and message from JSON", async () => {
   const response = new Response(
     JSON.stringify({
       code: "NOT_FOUND",
@@ -78,12 +124,12 @@ test("exceptionFromResponse reads code and message from JSON", async () => {
     { status: 404 },
   );
 
-  const result = await exceptionFromResponse(response);
+  const exception = await HttpException.fromResponse(response);
 
-  assert.equal(result.isErr, true);
-  assert.ok(result.error instanceof Exception);
-  assert.equal(result.error.code, "NOT_FOUND");
-  assert.equal(result.error.message, "User not found.");
+  assert.ok(exception instanceof Exception);
+  assert.equal(exception.code, "NOT_FOUND");
+  assert.equal(exception.message, "User not found.");
+  assert.equal(exception.response, response);
 });
 
 test("fetchWithResult returns an ok response for successful requests", async (t) => {
@@ -131,16 +177,26 @@ test("fetchWithResult uses JSON message fields for failed HTTP responses", async
   });
 
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ message: "Permission denied." }), {
-      status: 403,
-    });
+    new Response(
+      JSON.stringify({
+        code: "FORBIDDEN",
+        message: "Permission denied.",
+      }),
+      { status: 403 },
+    );
 
   const result = await fetchWithResult("https://example.com/private");
 
   assert.equal(result.isErr, true);
   assert.ok(result.error instanceof Exception);
-  assert.equal(result.error.code, "REQUEST_FAILED");
+  assert.ok(result.error instanceof HttpException);
+  assert.equal(result.error.code, "FORBIDDEN");
   assert.equal(result.error.message, "Permission denied.");
+  assert.equal(result.error.response.status, 403);
+  assert.deepEqual(await result.error.response.json(), {
+    code: "FORBIDDEN",
+    message: "Permission denied.",
+  });
 });
 
 test("fetchWithResult falls back to response text for failed HTTP responses", async (t) => {
@@ -156,6 +212,9 @@ test("fetchWithResult falls back to response text for failed HTTP responses", as
 
   assert.equal(result.isErr, true);
   assert.ok(result.error instanceof Exception);
-  assert.equal(result.error.code, "REQUEST_FAILED");
+  assert.ok(result.error instanceof HttpException);
+  assert.equal(result.error.code, "HTTP_EXCEPTION");
   assert.equal(result.error.message, "Server exploded.");
+  assert.equal(result.error.response.status, 500);
+  assert.equal(await result.error.response.text(), "Server exploded.");
 });

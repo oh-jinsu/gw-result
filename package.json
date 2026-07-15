@@ -1,10 +1,26 @@
 {
   "name": "gw-result",
-  "version": "0.2.0",
+  "version": "0.3.0",
+  "description": "Tiny TypeScript Result helpers with inferred error contracts.",
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "result",
+    "typescript",
+    "error-handling",
+    "ok",
+    "err",
+    "exception",
+    "fetch"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -15,6 +31,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepack": "npm run build",
     "test": "npm run build && npm run test:runtime && npm run test:types",
     "test:runtime": "node --test test/runtime/*.test.mjs",
     "test:types": "tsc --noEmit -p tsconfig.test.json"
@@ -23,13 +40,12 @@
     "type": "git",
     "url": "git+https://github.com/oh-jinsu/gw-result.git"
   },
-  "author": "",
+  "author": "oh-jinsu",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/oh-jinsu/gw-result/issues"
   },
   "homepage": "https://github.com/oh-jinsu/gw-result#readme",
-  "description": "",
   "devDependencies": {
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"

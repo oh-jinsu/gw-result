@@ -1,9 +1,15 @@
-import { exception } from "./exception";
+import { httpException } from "./http_exception";
 import { ok } from "./result";
 import { resultFrom } from "./result_from";
 
+/**
+ * Calls `fetch` and returns a result instead of throwing.
+ *
+ * Network failures become `Err<Error>`. Non-OK HTTP responses become
+ * `Err<HttpException<string>>` with code and message from the response body.
+ */
 export async function fetchWithResult(...args: Parameters<typeof fetch>) {
-  const result = await resultFrom(() => fetch(...args));
+  const result = await resultFrom<Response, Error>(() => fetch(...args));
 
   if (result.isErr) {
     return result;
@@ -12,28 +18,7 @@ export async function fetchWithResult(...args: Parameters<typeof fetch>) {
   const response = result.value;
 
   if (!response.ok) {
-    const readResult = await resultFrom(() => response.text());
-
-    if (readResult.isOk) {
-      const text = readResult.value;
-
-      const jsonResult = await resultFrom(() => JSON.parse(text));
-
-      if (jsonResult.isOk) {
-        const message = jsonResult.value?.message;
-
-        if (message) {
-          return exception("REQUEST_FAILED", message);
-        }
-      }
-
-      return exception("REQUEST_FAILED", text);
-    }
-
-    return exception(
-      "REQUEST_FAILED",
-      "요청이 실패했습니다. 응답을 읽을 수 없습니다.",
-    );
+    return httpException(response);
   }
 
   return ok(response);

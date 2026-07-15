@@ -1,22 +1,21 @@
 import {
   err,
   exception,
-  exceptionFromResponse,
   fetchWithResult,
+  HttpException,
+  httpException,
   ok,
   resultFrom,
   type Err,
   type Ex,
   type Exception,
+  type HttpEx,
   type Ok,
   type Result,
 } from "gw-result";
 
 type Equal<TActual, TExpected> =
-  (<T>() => T extends TActual ? 1 : 2) extends
-  (<T>() => T extends TExpected ? 1 : 2)
-    ? true
-    : false;
+  (<T>() => T extends TActual ? 1 : 2) extends <T>() => T extends TExpected ? 1 : 2 ? true : false;
 
 type Expect<T extends true> = T;
 
@@ -43,20 +42,17 @@ function parsePort(value: string) {
   return ok(port);
 }
 
+type ParsePortResultIsInferred = Expect<
+  Equal<ReturnType<typeof parsePort>, Ok<number> | Err<"EMPTY"> | Err<"INVALID">>
+>;
+
 const inferredPortResult = parsePort("3000");
 
 if (inferredPortResult.isErr) {
   const error: "EMPTY" | "INVALID" = inferredPortResult.error;
 }
 
-const explicitPortResult: Result<number, "EMPTY" | "INVALID"> =
-  parsePort("3000");
-
-// @ts-expect-error Inferred error branches include INVALID too.
-const tooNarrowPortResult: Result<number, "EMPTY"> = parsePort("3000");
-
-const result: Result<number, "EMPTY" | "INVALID"> =
-  Math.random() > 0.5 ? ok(3000) : err("EMPTY");
+const result: Result<number, "EMPTY" | "INVALID"> = Math.random() > 0.5 ? ok(3000) : err("EMPTY");
 
 if (result.isOk) {
   const value: number = result.value;
@@ -71,24 +67,31 @@ if (result.isOk) {
 }
 
 const resultFromSync = resultFrom((value: string) => Number(value), "42");
-type ResultFromSyncIsTyped = Expect<
-  Equal<typeof resultFromSync, Result<number>>
->;
+type ResultFromSyncIsTyped = Expect<Equal<typeof resultFromSync, Result<number, unknown>>>;
 
 const resultFromAsync = resultFrom(async (id: string) => ({ id }), "user_123");
-type ResultFromAsyncIsTyped = Expect<
-  Equal<typeof resultFromAsync, Promise<Result<{ id: string }>>>
+type ResultFromAsyncIsTyped = Expect<Equal<typeof resultFromAsync, Promise<Result<{ id: string }, unknown>>>>;
+
+const resultFromExplicitError = resultFrom<number, SyntaxError>(() => 42);
+type ResultFromExplicitErrorIsTyped = Expect<Equal<typeof resultFromExplicitError, Result<number, SyntaxError>>>;
+
+const resultFromExplicitAsyncError = resultFrom<{ id: string }, TypeError>(async () => ({ id: "user_123" }));
+type ResultFromExplicitAsyncErrorIsTyped = Expect<
+  Equal<typeof resultFromExplicitAsyncError, Promise<Result<{ id: string }, TypeError>>>
 >;
+
+const promiseLike: PromiseLike<number> = Promise.resolve(42);
+const resultFromPromiseLike = resultFrom(() => promiseLike);
+type ResultFromPromiseLikeIsTyped = Expect<Equal<typeof resultFromPromiseLike, Promise<Result<number, unknown>>>>;
 
 resultFrom((prefix: string, count: number) => prefix.repeat(count), "x", 2);
 
 // @ts-expect-error resultFrom should preserve wrapped function parameters.
 resultFrom((prefix: string, count: number) => prefix.repeat(count), "x", "2");
 
-const authResult: Result<string, Exception<"UNAUTHORIZED" | "FORBIDDEN">> =
-  Math.random() > 0.5
-    ? ok("user_123")
-    : exception("UNAUTHORIZED", "Sign in is required.");
+const authResult: Result<string, Exception<"UNAUTHORIZED" | "FORBIDDEN">> = Math.random() > 0.5
+  ? ok("user_123")
+  : exception("UNAUTHORIZED", "Sign in is required.");
 
 if (authResult.isErr) {
   const code: "UNAUTHORIZED" | "FORBIDDEN" = authResult.error.code;
@@ -98,15 +101,43 @@ if (authResult.isErr) {
   const wrongCode: "NOT_FOUND" = authResult.error.code;
 }
 
-const validationException = exception(
-  "VALIDATION_FAILED",
-  "Email is required.",
+const validationException = exception("VALIDATION_FAILED", "Email is required.");
+type ExceptionResultIsTyped = Expect<Equal<typeof validationException, Ex<"VALIDATION_FAILED">>>;
+
+const constructedHttpException = new HttpException(
+  new Response("Nope", { status: 400 }),
 );
-type ExceptionResultIsTyped = Expect<
-  Equal<typeof validationException, Ex<"VALIDATION_FAILED">>
+type ConstructedHttpExceptionIsTyped = Expect<
+  Equal<typeof constructedHttpException, HttpException<"HTTP_EXCEPTION">>
 >;
 
-const responseException = exceptionFromResponse<"NOT_FOUND">(
+const httpExceptionResult = httpException(
+  new Response("Nope", { status: 400 }),
+);
+type HttpExceptionResultIsTyped = Expect<
+  Equal<typeof httpExceptionResult, Promise<HttpEx<string>>>
+>;
+
+async function useHttpExceptionResult() {
+  const result = await httpException<"BAD_REQUEST">(
+    new Response(
+      JSON.stringify({
+        code: "BAD_REQUEST",
+        message: "Bad request.",
+      }),
+      { status: 400 },
+    ),
+  );
+
+  if (result.isErr) {
+    const error: HttpException<"BAD_REQUEST"> = result.error;
+    const code: "BAD_REQUEST" = result.error.code;
+    const message: string = result.error.message;
+    const response: Response = result.error.response;
+  }
+}
+
+const responseException = HttpException.fromResponse<"NOT_FOUND">(
   new Response(
     JSON.stringify({
       code: "NOT_FOUND",
@@ -114,14 +145,12 @@ const responseException = exceptionFromResponse<"NOT_FOUND">(
     }),
   ),
 );
-type ExceptionFromResponseIsTyped = Expect<
-  Equal<typeof responseException, Promise<Ex<"NOT_FOUND">>>
+type HttpExceptionFromResponseIsTyped = Expect<
+  Equal<typeof responseException, Promise<HttpException<"NOT_FOUND">>>
 >;
 
 const fetchResult = fetchWithResult("/api/users");
+
 type FetchResultIsTyped = Expect<
-  Equal<
-    typeof fetchResult,
-    Promise<Err<Error> | Ok<Response> | Ex<"REQUEST_FAILED">>
-  >
+  Equal<typeof fetchResult, Promise<Err<Error> | Ok<Response> | HttpEx<string>>>
 >;

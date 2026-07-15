@@ -1,15 +1,23 @@
 .github
+.vscode
+.DS_Store
 
 node_modules
+coverage
 
 src
+test
+
+AGENTS.md
+CLAUD.md
+
+package-lock.json
 tsconfig*.json
+tsup.config.ts
+
 *.spec.*
-coverage
+*.test.*
 
 .eslintrc.js
 .gitignore
 .prettierrc
-
-.vscode
-.DS_Store
